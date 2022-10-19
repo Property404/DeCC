@@ -1,3 +1,6 @@
+mod encoding_utils;
+
+use std::fs::File;
 use std::path::Path;
 
 use anyhow::{bail, Result};
@@ -25,7 +28,11 @@ fn deccify_srt_file(
     output: impl AsRef<Path>,
     pattern: &Regex,
 ) -> Result<()> {
-    let subtitles = Subtitles::parse_from_file(input, None)?;
+    let subtitles = Subtitles::parse_from_str(encoding_utils::read_file_with_encoding(
+        &mut File::open(input)?,
+        None,
+        false,
+    )?)?;
     let subtitles = remove_pattern_from_subs(subtitles, pattern);
     subtitles.write_to_file(output, None)?;
     Ok(())
