@@ -1,0 +1,10 @@
+*
+!*.gitignore
+!**/**/
+!*.rs
+!*.toml
+!*.md
+!*.lock
+!*.yml
+!assets/*
+target
