@@ -1,7 +1,6 @@
 mod encoding_utils;
 
-use std::fs::File;
-use std::path::Path;
+use std::{fs::File, path::PathBuf};
 
 use anyhow::{bail, Result};
 use regex::{self, Regex};
@@ -9,32 +8,39 @@ use srtlib::Subtitles;
 
 pub const DEFAULT_PATTERN: &str = r"\[.*?\]";
 
-pub fn deccify_file(
-    input: impl AsRef<Path>,
-    output: impl AsRef<Path>,
-    pattern: Option<String>,
-) -> Result<()> {
-    let pattern = Regex::new(pattern.unwrap_or_else(|| DEFAULT_PATTERN.into()).as_str())?;
-    let extension = input.as_ref().extension().and_then(|ostr| ostr.to_str());
+pub struct Options {
+    /// Input file.
+    pub input_file: PathBuf,
+    /// Output file.
+    pub output_file: PathBuf,
+    /// Encoding to use.
+    pub encoding: Option<String>,
+    /// Force parsing even if encoding is incorrect.
+    pub force: bool,
+    /// The pattern to use.
+    pub pattern: Regex,
+}
+
+pub fn deccify_file(options: Options) -> Result<()> {
+    let extension = options
+        .input_file
+        .extension()
+        .and_then(|ostr| ostr.to_str());
     match extension {
-        Some("srt") => deccify_srt_file(input, output, &pattern)?,
+        Some("srt") => deccify_srt_file(&options)?,
         _ => bail!("Unrecognized file type!"),
     }
     Ok(())
 }
 
-fn deccify_srt_file(
-    input: impl AsRef<Path>,
-    output: impl AsRef<Path>,
-    pattern: &Regex,
-) -> Result<()> {
+fn deccify_srt_file(options: &Options) -> Result<()> {
     let subtitles = Subtitles::parse_from_str(encoding_utils::read_file_with_encoding(
-        &mut File::open(input)?,
-        None,
-        false,
+        &mut File::open(&options.input_file)?,
+        options.encoding.as_deref(),
+        options.force,
     )?)?;
-    let subtitles = remove_pattern_from_subs(subtitles, pattern);
-    subtitles.write_to_file(output, None)?;
+    let subtitles = remove_pattern_from_subs(subtitles, &options.pattern);
+    subtitles.write_to_file(&options.output_file, None)?;
     Ok(())
 }
 
@@ -53,6 +59,7 @@ fn remove_pattern_from_subs(subs: Subtitles, pattern: &Regex) -> Subtitles {
 mod test {
     use super::*;
     use srtlib::{Subtitle, Timestamp};
+    use std::path::Path;
     use tempfile::NamedTempFile;
 
     fn craft_subtitles(lines: &'static str) -> Subtitles {
@@ -103,10 +110,19 @@ mod test {
 
     #[test]
     fn fix_up_srt_file() {
-        let input = "assets/asset1.srt";
-        let output = NamedTempFile::new().unwrap();
+        let temp_file = NamedTempFile::new().unwrap();
 
-        deccify_file(input, output.path(), None).unwrap();
-        assert!(compare_srt_files(output.path(), "assets/asset1_fixed.srt"));
+        deccify_file(Options {
+            input_file: "assets/asset1.srt".into(),
+            output_file: temp_file.path().into(),
+            encoding: None,
+            force: false,
+            pattern: Regex::new(DEFAULT_PATTERN).unwrap(),
+        })
+        .unwrap();
+        assert!(compare_srt_files(
+            temp_file.path(),
+            "assets/asset1_fixed.srt"
+        ));
     }
 }
