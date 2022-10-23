@@ -6,7 +6,7 @@ use anyhow::{bail, Result};
 use regex::{self, Regex};
 use srtlib::Subtitles;
 
-pub const DEFAULT_PATTERN: &str = r"\[.*?\]";
+pub const DEFAULT_PATTERN: &str = r"(?s)(\[.*?\]|\(.*?\))";
 
 pub struct Options {
     /// Input file.
@@ -48,7 +48,7 @@ fn remove_pattern_from_subs(subs: Subtitles, pattern: &Regex) -> Subtitles {
     let mut new_subs = Subtitles::new();
     for mut sub in subs {
         sub.text = pattern.replace_all(&sub.text, "").to_string();
-        if !sub.text.is_empty() {
+        if sub.text.chars().any(char::is_alphabetic) {
             new_subs.push(sub)
         }
     }
@@ -97,6 +97,7 @@ mod test {
                 "[Well well well]\nWhat have we here[SANDY CLAWS?]?",
                 "What have we here?",
             ),
+            ("Oh ho(ho ho hee)[ ho]", "Oh ho"),
         ]
         .into_iter()
         .map(|(a, b)| (craft_subtitles(a), craft_subtitles(b)))
