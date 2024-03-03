@@ -64,7 +64,7 @@ mod test {
 
     fn craft_subtitles(lines: &'static str) -> Subtitles {
         let lines = lines.to_string();
-        let lines = lines.split("\n");
+        let lines = lines.split('\n');
         let mut subs = Subtitles::new();
         for line in lines {
             subs.push(Subtitle::new(
